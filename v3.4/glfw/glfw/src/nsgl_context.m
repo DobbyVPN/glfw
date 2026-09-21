@@ -313,9 +313,27 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
         [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs];
     if (window->context.nsgl.pixelFormat == nil)
     {
-        _glfwInputError(GLFW_FORMAT_UNAVAILABLE,
-                        "NSGL: Failed to find a suitable pixel format");
-        return GLFW_FALSE;
+        // Some virtualized macOS desktops expose only Apple's software
+        // renderer.  Keep the normal accelerated request as the first
+        // attempt, then retry the identical format without only the
+        // NSOpenGLPFAAccelerated boolean when pixel-format selection itself
+        // returns nil.  Context-creation failures below remain hard errors.
+        NSOpenGLPixelFormatAttribute softwareAttribs[40];
+        int softwareIndex = 0;
+        for (int i = 1; attribs[i] != 0; i++)
+        {
+            assert((size_t) softwareIndex < sizeof(softwareAttribs) / sizeof(softwareAttribs[0]) - 1);
+            softwareAttribs[softwareIndex++] = attribs[i];
+        }
+        softwareAttribs[softwareIndex] = 0;
+        window->context.nsgl.pixelFormat =
+            [[NSOpenGLPixelFormat alloc] initWithAttributes:softwareAttribs];
+        if (window->context.nsgl.pixelFormat == nil)
+        {
+            _glfwInputError(GLFW_FORMAT_UNAVAILABLE,
+                            "NSGL: Failed to find a suitable pixel format");
+            return GLFW_FALSE;
+        }
     }
 
     NSOpenGLContext* share = nil;
@@ -381,4 +399,3 @@ GLFWAPI id glfwGetNSGLContext(GLFWwindow* handle)
 }
 
 #endif // _GLFW_COCOA
-
