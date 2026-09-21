@@ -318,16 +318,14 @@ GLFWbool _glfwCreateContextNSGL(_GLFWwindow* window,
         // attempt, then retry the identical format without only the
         // NSOpenGLPFAAccelerated boolean when pixel-format selection itself
         // returns nil.  Context-creation failures below remain hard errors.
-        NSOpenGLPixelFormatAttribute softwareAttribs[40];
-        int softwareIndex = 0;
-        for (int i = 1; attribs[i] != 0; i++)
-        {
-            assert((size_t) softwareIndex < sizeof(softwareAttribs) / sizeof(softwareAttribs[0]) - 1);
-            softwareAttribs[softwareIndex++] = attribs[i];
-        }
-        softwareAttribs[softwareIndex] = 0;
+        // The attribute list can contain zero-valued attributes (for example
+        // NSOpenGLPFASampleBuffers, 0), so do not copy it by searching for a
+        // zero terminator.  Accelerated is always the first attribute above;
+        // passing the remaining, already terminated list preserves every
+        // attribute/value pair exactly.
+        assert(attribs[0] == NSOpenGLPFAAccelerated);
         window->context.nsgl.pixelFormat =
-            [[NSOpenGLPixelFormat alloc] initWithAttributes:softwareAttribs];
+            [[NSOpenGLPixelFormat alloc] initWithAttributes:attribs + 1];
         if (window->context.nsgl.pixelFormat == nil)
         {
             _glfwInputError(GLFW_FORMAT_UNAVAILABLE,
